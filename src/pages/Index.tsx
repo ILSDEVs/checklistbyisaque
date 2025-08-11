@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 interface FileWithId extends File {
   id: string;
+  serialNumber?: string;
 }
 
 const Index = () => {
@@ -27,6 +28,20 @@ const Index = () => {
   const handleProcess = async () => {
     if (files.length === 0) {
       toast.error("Selecione pelo menos um arquivo PDF");
+      return;
+    }
+
+    // Verifica se todos os arquivos têm números de série válidos
+    const filesWithoutSerial = files.filter(f => !f.serialNumber || f.serialNumber.trim() === '');
+    const filesWithInvalidSerial = files.filter(f => f.serialNumber && !/^1[A-Z][0-9]{6}[A-Z]$/.test(f.serialNumber.trim()));
+    
+    if (filesWithoutSerial.length > 0) {
+      toast.error(`${filesWithoutSerial.length} arquivo(s) sem número de série informado`);
+      return;
+    }
+    
+    if (filesWithInvalidSerial.length > 0) {
+      toast.error(`${filesWithInvalidSerial.length} arquivo(s) com formato de número de série inválido`);
       return;
     }
 
@@ -148,8 +163,9 @@ const Index = () => {
             <h3 className="font-semibold mb-3">Como usar:</h3>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
               <li>Faça upload dos arquivos PDF usando arrastar e soltar ou o botão de seleção</li>
-              <li>Clique em "Processar" para iniciar a busca pelos números de série</li>
-              <li>O sistema procurará pelo padrão: <code className="bg-muted px-1 rounded">1X000000X</code> (1 + letra + 6 dígitos + letra)</li>
+              <li>Para cada arquivo, <strong>cole o número de série</strong> no campo correspondente</li>
+              <li>O número deve seguir o padrão: <code className="bg-muted px-1 rounded">1X000000X</code> (1 + letra + 6 dígitos + letra)</li>
+              <li>Clique em "Processar" para renomear os arquivos</li>
               <li>Baixe o arquivo ZIP com os PDFs renomeados e o relatório detalhado</li>
             </ol>
           </CardContent>

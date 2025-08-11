@@ -2,50 +2,30 @@ import { ProcessingFile } from "@/components/ProcessingStatus";
 
 interface FileWithId extends File {
   id: string;
+  serialNumber?: string;
 }
 
-// Simula a busca do número de série no PDF
-const extractSerialNumber = async (file: File): Promise<string | null> => {
+// Valida se o número de série está no formato correto: 1X000000X
+const validateSerialNumber = (serialNumber: string): boolean => {
+  const serialPattern = /^1[A-Z][0-9]{6}[A-Z]$/;
+  return serialPattern.test(serialNumber);
+};
+// Processa arquivos usando os números de série inseridos manualmente
+const processFileWithManualSerial = async (file: FileWithId): Promise<{ serialNumber?: string; errorReason?: string }> => {
   // Simula tempo de processamento
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
   
-  // Regex para o padrão 1X000000X
-  const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/;
-  
-  // Simula diferentes cenários baseado no nome do arquivo
-  const fileName = file.name.toLowerCase();
-  
-  // Simula encontrar números de série em alguns arquivos
-  if (fileName.includes('checklist') || fileName.includes('test')) {
-    // Gera um número de série fictício que segue o padrão
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const firstLetter = letters[Math.floor(Math.random() * letters.length)];
-    const lastLetter = letters[Math.floor(Math.random() * letters.length)];
-    const numbers = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    return `1${firstLetter}${numbers}${lastLetter}`;
+  // Verifica se o número de série foi fornecido
+  if (!file.serialNumber || file.serialNumber.trim() === '') {
+    return { errorReason: 'Número de série não informado' };
   }
   
-  // Simula diferentes tipos de erro
-  if (fileName.includes('corrupt')) {
-    throw new Error('Arquivo corrompido');
-  }
-  if (fileName.includes('protected')) {
-    throw new Error('PDF protegido por senha');
-  }
-  if (fileName.includes('scan')) {
-    throw new Error('Arquivo ilegível - necessário OCR');
+  // Valida o formato do número de série
+  if (!validateSerialNumber(file.serialNumber.trim())) {
+    return { errorReason: 'Formato de número de série inválido (use 1X000000X)' };
   }
   
-  // 70% de chance de encontrar um número de série nos outros arquivos
-  if (Math.random() > 0.3) {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const firstLetter = letters[Math.floor(Math.random() * letters.length)];
-    const lastLetter = letters[Math.floor(Math.random() * letters.length)];
-    const numbers = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    return `1${firstLetter}${numbers}${lastLetter}`;
-  }
-  
-  return null;
+  return { serialNumber: file.serialNumber.trim() };
 };
 
 export const processFiles = async (
@@ -70,15 +50,15 @@ export const processFiles = async (
     onProgress([...processingFiles]);
     
     try {
-      const serialNumber = await extractSerialNumber(file);
+      const result = await processFileWithManualSerial(file);
       
-      if (serialNumber) {
+      if (result.serialNumber) {
         processingFile.status = 'success';
-        processingFile.serialNumber = serialNumber;
-        processingFile.newName = `${serialNumber}.pdf`;
+        processingFile.serialNumber = result.serialNumber;
+        processingFile.newName = `${result.serialNumber}.pdf`;
       } else {
         processingFile.status = 'error';
-        processingFile.errorReason = 'Número de série não encontrado';
+        processingFile.errorReason = result.errorReason || 'Erro desconhecido';
       }
     } catch (error) {
       processingFile.status = 'error';
