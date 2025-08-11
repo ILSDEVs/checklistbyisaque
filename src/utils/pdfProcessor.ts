@@ -2,30 +2,52 @@ import { ProcessingFile } from "@/components/ProcessingStatus";
 
 interface FileWithId extends File {
   id: string;
-  serialNumber?: string;
 }
 
-// Valida se o número de série está no formato correto: 1X000000X
-const validateSerialNumber = (serialNumber: string): boolean => {
-  const serialPattern = /^1[A-Z][0-9]{6}[A-Z]$/;
-  return serialPattern.test(serialNumber);
-};
-// Processa arquivos usando os números de série inseridos manualmente
-const processFileWithManualSerial = async (file: FileWithId): Promise<{ serialNumber?: string; errorReason?: string }> => {
-  // Simula tempo de processamento
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
+// Simula a extração do número de série do PDF (substituiria por biblioteca real como PyMuPDF)
+const extractSerialNumberFromPDF = async (file: File): Promise<string | null> => {
+  // Simula tempo de processamento de leitura do PDF
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 3000 + 1000));
   
-  // Verifica se o número de série foi fornecido
-  if (!file.serialNumber || file.serialNumber.trim() === '') {
-    return { errorReason: 'Número de série não informado' };
+  // Regex para o padrão 1X000000X
+  const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/;
+  
+  // Simula diferentes cenários de processamento baseado no nome do arquivo
+  const fileName = file.name.toLowerCase();
+  
+  // Simula PDF corrompido ou com erro
+  if (fileName.includes('corrupt') || fileName.includes('erro')) {
+    throw new Error('Arquivo PDF corrompido ou ilegível');
   }
   
-  // Valida o formato do número de série
-  if (!validateSerialNumber(file.serialNumber.trim())) {
-    return { errorReason: 'Formato de número de série inválido (use 1X000000X)' };
+  // Simula PDF protegido por senha
+  if (fileName.includes('protect') || fileName.includes('senha')) {
+    throw new Error('PDF protegido por senha');
   }
   
-  return { serialNumber: file.serialNumber.trim() };
+  // Simula arquivo que precisa de OCR (texto em imagem)
+  if (fileName.includes('scan') || fileName.includes('imagem')) {
+    // Simula tentativa de OCR
+    if (Math.random() > 0.6) {
+      throw new Error('Arquivo ilegível - texto em imagem não reconhecido');
+    }
+  }
+  
+  // Simula busca bem-sucedida do número de série
+  // Em um sistema real, aqui seria a busca no conteúdo do PDF
+  const searchSuccess = Math.random() > 0.2; // 80% de chance de sucesso
+  
+  if (searchSuccess) {
+    // Gera um número de série fictício seguindo o padrão correto
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const firstLetter = letters[Math.floor(Math.random() * letters.length)];
+    const lastLetter = letters[Math.floor(Math.random() * letters.length)];
+    const numbers = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    return `1${firstLetter}${numbers}${lastLetter}`;
+  }
+  
+  // Não encontrou número de série no padrão especificado
+  return null;
 };
 
 export const processFiles = async (
@@ -50,19 +72,19 @@ export const processFiles = async (
     onProgress([...processingFiles]);
     
     try {
-      const result = await processFileWithManualSerial(file);
+      const serialNumber = await extractSerialNumberFromPDF(file);
       
-      if (result.serialNumber) {
+      if (serialNumber) {
         processingFile.status = 'success';
-        processingFile.serialNumber = result.serialNumber;
-        processingFile.newName = `${result.serialNumber}.pdf`;
+        processingFile.serialNumber = serialNumber;
+        processingFile.newName = `${serialNumber}.pdf`;
       } else {
         processingFile.status = 'error';
-        processingFile.errorReason = result.errorReason || 'Erro desconhecido';
+        processingFile.errorReason = 'Número de série não encontrado no padrão 1X000000X';
       }
     } catch (error) {
       processingFile.status = 'error';
-      processingFile.errorReason = error instanceof Error ? error.message : 'Erro desconhecido';
+      processingFile.errorReason = error instanceof Error ? error.message : 'Erro desconhecido durante processamento';
     }
     
     onProgress([...processingFiles]);
