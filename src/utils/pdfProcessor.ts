@@ -2,6 +2,7 @@ import { ProcessingFile } from "@/components/ProcessingStatus";
 
 interface FileWithId extends File {
   id: string;
+  path?: string; // Propriedade opcional para arquivos com path
 }
 
 // Coordenadas padrão para busca do número de série (canto superior esquerdo)
@@ -98,33 +99,23 @@ export const processFiles = async (
   onProgress: (files: ProcessingFile[]) => void
 ): Promise<ProcessingFile[]> => {
   console.log(`Iniciando processamento de ${files.length} arquivos`);
-  console.log('Arquivos recebidos:', files);
   
-  // Debug: Vamos verificar cada arquivo individualmente
-  files.forEach((file, index) => {
-    console.log(`Arquivo ${index}:`, {
-      exists: !!file,
-      hasName: !!file?.name,
-      name: file?.name,
-      hasSize: !!file?.size,
-      size: file?.size,
-      hasId: !!file?.id,
-      id: file?.id,
-      type: file?.type,
-      fullObject: file
-    });
-  });
-  
-  // Valida se todos os arquivos são válidos
-  const validFiles = files.filter(file => {
-    const isValid = file && file.name && file.size > 0;
-    if (!isValid) {
-      console.log('Arquivo inválido detectado:', file);
+  // Mapeia e converte os objetos file-like para formato esperado
+  const validFiles = files.map(file => {
+    // Se é um objeto com path, extrai o nome do arquivo
+    if (file.path && !file.name) {
+      const fileName = file.path.replace('./', ''); // Remove "./" do início
+      return {
+        ...file,
+        name: fileName,
+        size: 1024 * 1024, // Simula 1MB para cada arquivo
+        type: 'application/pdf'
+      };
     }
-    return isValid;
-  });
+    return file;
+  }).filter(file => file && file.name && file.name.length > 0);
   
-  console.log(`Arquivos válidos: ${validFiles.length}/${files.length}`);
+  console.log(`Arquivos válidos processados: ${validFiles.length}/${files.length}`);
   
   if (validFiles.length !== files.length) {
     console.warn(`${files.length - validFiles.length} arquivos inválidos foram ignorados`);
