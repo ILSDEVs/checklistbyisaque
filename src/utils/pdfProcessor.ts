@@ -14,10 +14,17 @@ const DEFAULT_COORDINATES = {
 
 // Simula a extração do número de série do PDF usando coordenadas específicas
 const extractSerialNumberFromPDF = async (file: File): Promise<string | null> => {
+  // Verifica se o arquivo e nome são válidos
+  if (!file || !file.name) {
+    console.error('Arquivo inválido ou sem nome:', file);
+    throw new Error('Arquivo inválido ou corrompido');
+  }
+
   // Simula tempo de processamento de leitura do PDF
   await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
   
   console.log(`Processando arquivo: ${file.name}`);
+  console.log(`Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
   console.log(`Buscando número de série nas coordenadas: x=${DEFAULT_COORDINATES.x}, y=${DEFAULT_COORDINATES.y}`);
   
   // Regex para o padrão 1X000000X
@@ -90,7 +97,16 @@ export const processFiles = async (
   files: FileWithId[],
   onProgress: (files: ProcessingFile[]) => void
 ): Promise<ProcessingFile[]> => {
-  const processingFiles: ProcessingFile[] = files.map(file => ({
+  console.log(`Iniciando processamento de ${files.length} arquivos`);
+  
+  // Valida se todos os arquivos são válidos
+  const validFiles = files.filter(file => file && file.name && file.size > 0);
+  
+  if (validFiles.length !== files.length) {
+    console.warn(`${files.length - validFiles.length} arquivos inválidos foram ignorados`);
+  }
+
+  const processingFiles: ProcessingFile[] = validFiles.map(file => ({
     id: file.id,
     name: file.name,
     status: 'pending'
@@ -99,9 +115,11 @@ export const processFiles = async (
   // Inicia o processamento
   onProgress(processingFiles);
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
+  for (let i = 0; i < validFiles.length; i++) {
+    const file = validFiles[i];
     const processingFile = processingFiles[i];
+    
+    console.log(`Processando arquivo ${i + 1}/${validFiles.length}: ${file.name}`);
     
     // Marca como processando
     processingFile.status = 'processing';
@@ -114,18 +132,22 @@ export const processFiles = async (
         processingFile.status = 'success';
         processingFile.serialNumber = serialNumber;
         processingFile.newName = `${serialNumber}.pdf`;
+        console.log(`Arquivo processado com sucesso: ${file.name} → ${serialNumber}.pdf`);
       } else {
         processingFile.status = 'error';
         processingFile.errorReason = 'Número de série não encontrado no padrão 1X000000X';
+        console.log(`Número de série não encontrado no arquivo: ${file.name}`);
       }
     } catch (error) {
       processingFile.status = 'error';
       processingFile.errorReason = error instanceof Error ? error.message : 'Erro desconhecido durante processamento';
+      console.error(`Erro ao processar arquivo ${file.name}:`, error);
     }
     
     onProgress([...processingFiles]);
   }
   
+  console.log('Processamento concluído');
   return processingFiles;
 };
 
