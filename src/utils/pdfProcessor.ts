@@ -98,9 +98,33 @@ export const processFiles = async (
   onProgress: (files: ProcessingFile[]) => void
 ): Promise<ProcessingFile[]> => {
   console.log(`Iniciando processamento de ${files.length} arquivos`);
+  console.log('Arquivos recebidos:', files);
+  
+  // Debug: Vamos verificar cada arquivo individualmente
+  files.forEach((file, index) => {
+    console.log(`Arquivo ${index}:`, {
+      exists: !!file,
+      hasName: !!file?.name,
+      name: file?.name,
+      hasSize: !!file?.size,
+      size: file?.size,
+      hasId: !!file?.id,
+      id: file?.id,
+      type: file?.type,
+      fullObject: file
+    });
+  });
   
   // Valida se todos os arquivos são válidos
-  const validFiles = files.filter(file => file && file.name && file.size > 0);
+  const validFiles = files.filter(file => {
+    const isValid = file && file.name && file.size > 0;
+    if (!isValid) {
+      console.log('Arquivo inválido detectado:', file);
+    }
+    return isValid;
+  });
+  
+  console.log(`Arquivos válidos: ${validFiles.length}/${files.length}`);
   
   if (validFiles.length !== files.length) {
     console.warn(`${files.length - validFiles.length} arquivos inválidos foram ignorados`);
