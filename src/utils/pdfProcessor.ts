@@ -13,7 +13,18 @@ const DEFAULT_COORDINATES = {
   height: 100 // altura da área de busca
 };
 
-// Simula a extração do número de série do PDF usando coordenadas específicas
+// Múltiplas coordenadas para busca do número de série
+const COORDINATE_VARIATIONS = [
+  { x: 50, y: 50, width: 200, height: 100 },     // Canto superior esquerdo
+  { x: 200, y: 80, width: 250, height: 120 },   // Centro superior
+  { x: 400, y: 50, width: 200, height: 100 },   // Canto superior direito
+  { x: 100, y: 150, width: 300, height: 150 },  // Centro do documento
+  { x: 50, y: 300, width: 400, height: 200 },   // Metade inferior
+  { x: 300, y: 700, width: 200, height: 100 },  // Canto inferior direito
+  { x: 50, y: 700, width: 200, height: 100 },   // Canto inferior esquerdo
+];
+
+// Simula a extração do número de série do PDF usando código de barras e coordenadas
 const extractSerialNumberFromPDF = async (file: File): Promise<string | null> => {
   // Verifica se o arquivo e nome são válidos
   if (!file || !file.name) {
@@ -26,7 +37,6 @@ const extractSerialNumberFromPDF = async (file: File): Promise<string | null> =>
   
   console.log(`Processando arquivo: ${file.name}`);
   console.log(`Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
-  console.log(`Buscando número de série nas coordenadas: x=${DEFAULT_COORDINATES.x}, y=${DEFAULT_COORDINATES.y}`);
   
   // Regex para o padrão 1X000000X
   const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/;
@@ -44,58 +54,68 @@ const extractSerialNumberFromPDF = async (file: File): Promise<string | null> =>
     throw new Error('PDF protegido por senha');
   }
   
-  // Simula leitura por coordenadas específicas
-  console.log(`Lendo área específica: ${DEFAULT_COORDINATES.width}x${DEFAULT_COORDINATES.height}px`);
+  // PRIMEIRA TENTATIVA: Leitura de código de barras
+  console.log('Buscando código de barras no documento...');
+  await new Promise(resolve => setTimeout(resolve, 800)); // Simula tempo de busca de código de barras
   
-  // Simula OCR na área especificada
-  if (fileName.includes('scan') || fileName.includes('imagem')) {
-    console.log('Aplicando OCR na área delimitada...');
-    // Simula tentativa de OCR em área específica
-    if (Math.random() > 0.5) {
-      throw new Error('OCR falhou na área especificada - texto não reconhecido');
-    }
-  }
+  // Simula detecção de código de barras com alta taxa de sucesso
+  const barcodeDetected = Math.random() > 0.2; // 80% de chance de detectar código de barras
   
-  // Simula busca de texto na área de coordenadas
-  const coordenateSearchSuccess = Math.random() > 0.15; // 85% de chance de sucesso com coordenadas
-  
-  if (coordenateSearchSuccess) {
-    // Tenta extrair o número de série real do nome do arquivo (simulando leitura das coordenadas)
-    const fileNameWithoutExtension = fileName.replace('.pdf', '');
+  if (barcodeDetected) {
+    console.log('Código de barras detectado, decodificando...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Extrai o número de série do nome do arquivo (simulando leitura do código de barras)
+    const fileNameWithoutExtension = file.name.replace('.pdf', '');
     const serialMatch = fileNameWithoutExtension.match(serialPattern);
     
     if (serialMatch) {
-      const realSerialNumber = serialMatch[0];
-      console.log(`Número de série encontrado nas coordenadas: ${realSerialNumber}`);
+      const realSerialNumber = serialMatch[0].toUpperCase();
+      console.log(`Número de série extraído do código de barras: ${realSerialNumber}`);
       return realSerialNumber;
     } else {
-      // Se não encontrar no nome, simula leitura de coordenadas específicas
-      // Vamos assumir que conseguimos ler algo nas coordenadas mas que não é o padrão correto
-      console.log('Texto encontrado nas coordenadas não corresponde ao padrão esperado');
+      console.log('Código de barras detectado mas não contém número de série válido');
     }
+  } else {
+    console.log('Nenhum código de barras detectado no documento');
   }
   
-  // Tenta busca em coordenadas alternativas (centro superior)
-  const alternateCoords = { x: 200, y: 80, width: 250, height: 120 };
-  console.log(`Tentando coordenadas alternativas: x=${alternateCoords.x}, y=${alternateCoords.y}`);
+  // SEGUNDA TENTATIVA: Busca por coordenadas com múltiplas variações
+  console.log('Iniciando busca por coordenadas em múltiplas áreas...');
   
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simula nova busca
-  
-  const alternateSearchSuccess = Math.random() > 0.3; // 70% chance na segunda tentativa
-  
-  if (alternateSearchSuccess) {
-    // Tenta novamente extrair do nome do arquivo nas coordenadas alternativas
-    const fileNameWithoutExtension = fileName.replace('.pdf', '');
-    const serialMatch = fileNameWithoutExtension.match(serialPattern);
+  for (let i = 0; i < COORDINATE_VARIATIONS.length; i++) {
+    const coords = COORDINATE_VARIATIONS[i];
+    console.log(`Tentativa ${i + 1}/${COORDINATE_VARIATIONS.length}: Buscando nas coordenadas x=${coords.x}, y=${coords.y}, área=${coords.width}x${coords.height}px`);
     
-    if (serialMatch) {
-      const realSerialNumber = serialMatch[0];
-      console.log(`Número de série encontrado em coordenadas alternativas: ${realSerialNumber}`);
-      return realSerialNumber;
+    await new Promise(resolve => setTimeout(resolve, 400)); // Simula tempo de OCR
+    
+    // Simula OCR na área especificada
+    if (fileName.includes('scan') || fileName.includes('imagem')) {
+      console.log('Aplicando OCR na área delimitada...');
+    }
+    
+    // Cada área tem uma chance diferente de sucesso
+    const successRate = i === 0 ? 0.3 : i === 1 ? 0.4 : i === 2 ? 0.25 : 0.15; // Primeiras áreas têm mais chance
+    const coordenateSearchSuccess = Math.random() < successRate;
+    
+    if (coordenateSearchSuccess) {
+      // Extrai o número de série do nome do arquivo (simulando leitura das coordenadas)
+      const fileNameWithoutExtension = file.name.replace('.pdf', '');
+      const serialMatch = fileNameWithoutExtension.match(serialPattern);
+      
+      if (serialMatch) {
+        const realSerialNumber = serialMatch[0].toUpperCase();
+        console.log(`Número de série encontrado nas coordenadas ${i + 1}: ${realSerialNumber}`);
+        return realSerialNumber;
+      } else {
+        console.log(`Texto encontrado nas coordenadas ${i + 1} mas não corresponde ao padrão esperado`);
+      }
+    } else {
+      console.log(`Nenhum texto legível encontrado nas coordenadas ${i + 1}`);
     }
   }
   
-  console.log('Número de série não encontrado em nenhuma área de coordenadas');
+  console.log('Número de série não encontrado após busca em todas as coordenadas');
   return null;
 };
 
