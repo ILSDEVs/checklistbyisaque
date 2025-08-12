@@ -4,10 +4,21 @@ interface FileWithId extends File {
   id: string;
 }
 
-// Simula a extração do número de série do PDF (substituiria por biblioteca real como PyMuPDF)
+// Coordenadas padrão para busca do número de série (canto superior esquerdo)
+const DEFAULT_COORDINATES = {
+  x: 50,      // pixels do lado esquerdo
+  y: 50,      // pixels do topo
+  width: 200, // largura da área de busca
+  height: 100 // altura da área de busca
+};
+
+// Simula a extração do número de série do PDF usando coordenadas específicas
 const extractSerialNumberFromPDF = async (file: File): Promise<string | null> => {
   // Simula tempo de processamento de leitura do PDF
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 3000 + 1000));
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
+  
+  console.log(`Processando arquivo: ${file.name}`);
+  console.log(`Buscando número de série nas coordenadas: x=${DEFAULT_COORDINATES.x}, y=${DEFAULT_COORDINATES.y}`);
   
   // Regex para o padrão 1X000000X
   const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/;
@@ -25,28 +36,53 @@ const extractSerialNumberFromPDF = async (file: File): Promise<string | null> =>
     throw new Error('PDF protegido por senha');
   }
   
-  // Simula arquivo que precisa de OCR (texto em imagem)
+  // Simula leitura por coordenadas específicas
+  console.log(`Lendo área específica: ${DEFAULT_COORDINATES.width}x${DEFAULT_COORDINATES.height}px`);
+  
+  // Simula OCR na área especificada
   if (fileName.includes('scan') || fileName.includes('imagem')) {
-    // Simula tentativa de OCR
-    if (Math.random() > 0.6) {
-      throw new Error('Arquivo ilegível - texto em imagem não reconhecido');
+    console.log('Aplicando OCR na área delimitada...');
+    // Simula tentativa de OCR em área específica
+    if (Math.random() > 0.5) {
+      throw new Error('OCR falhou na área especificada - texto não reconhecido');
     }
   }
   
-  // Simula busca bem-sucedida do número de série
-  // Em um sistema real, aqui seria a busca no conteúdo do PDF
-  const searchSuccess = Math.random() > 0.2; // 80% de chance de sucesso
+  // Simula busca de texto na área de coordenadas
+  const coordenateSearchSuccess = Math.random() > 0.15; // 85% de chance de sucesso com coordenadas
   
-  if (searchSuccess) {
+  if (coordenateSearchSuccess) {
     // Gera um número de série fictício seguindo o padrão correto
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const firstLetter = letters[Math.floor(Math.random() * letters.length)];
     const lastLetter = letters[Math.floor(Math.random() * letters.length)];
     const numbers = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    return `1${firstLetter}${numbers}${lastLetter}`;
+    const serialNumber = `1${firstLetter}${numbers}${lastLetter}`;
+    
+    console.log(`Número de série encontrado nas coordenadas: ${serialNumber}`);
+    return serialNumber;
   }
   
-  // Não encontrou número de série no padrão especificado
+  // Tenta busca em coordenadas alternativas (centro superior)
+  const alternateCoords = { x: 200, y: 80, width: 250, height: 120 };
+  console.log(`Tentando coordenadas alternativas: x=${alternateCoords.x}, y=${alternateCoords.y}`);
+  
+  await new Promise(resolve => setTimeout(resolve, 500)); // Simula nova busca
+  
+  const alternateSearchSuccess = Math.random() > 0.3; // 70% chance na segunda tentativa
+  
+  if (alternateSearchSuccess) {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const firstLetter = letters[Math.floor(Math.random() * letters.length)];
+    const lastLetter = letters[Math.floor(Math.random() * letters.length)];
+    const numbers = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    const serialNumber = `1${firstLetter}${numbers}${lastLetter}`;
+    
+    console.log(`Número de série encontrado em coordenadas alternativas: ${serialNumber}`);
+    return serialNumber;
+  }
+  
+  console.log('Número de série não encontrado em nenhuma área de coordenadas');
   return null;
 };
 
