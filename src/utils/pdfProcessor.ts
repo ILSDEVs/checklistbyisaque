@@ -217,89 +217,16 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
     
     if (originalFile) {
       try {
-        // Lê o conteúdo original do arquivo
-        let arrayBuffer;
-        if (originalFile.arrayBuffer) {
-          arrayBuffer = await originalFile.arrayBuffer();
-        } else {
-          // Para arquivos simulados, cria um PDF básico válido
-          const pdfContent = `%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
-
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
-
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 612 792]
-/Resources <<
-/Font <<
-/F1 4 0 R
->>
->>
-/Contents 5 0 R
->>
-endobj
-
-4 0 obj
-<<
-/Type /Font
-/Subtype /Type1
-/BaseFont /Helvetica
->>
-endobj
-
-5 0 obj
-<<
-/Length 200
->>
-stream
-BT
-/F1 12 Tf
-72 720 Td
-(Checklist) Tj
-0 -20 Td
-(Número de Série: ${file.serialNumber}) Tj
-ET
-endstream
-endobj
-
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000074 00000 n 
-0000000120 00000 n 
-0000000274 00000 n 
-0000000365 00000 n 
-trailer
-<<
-/Size 6
-/Root 1 0 R
->>
-startxref
-456
-%%EOF`;
-          arrayBuffer = new TextEncoder().encode(pdfContent).buffer;
-        }
+        // Sempre tenta ler o conteúdo original do arquivo
+        const arrayBuffer = await originalFile.arrayBuffer();
         
         // Adiciona ao ZIP com o novo nome mas conteúdo original
         zip.file(file.newName || `${file.serialNumber}.pdf`, arrayBuffer);
         console.log(`Arquivo ${file.name} adicionado ao ZIP como ${file.newName} com conteúdo original preservado`);
       } catch (error) {
-        console.error(`Erro ao processar arquivo ${file.name} para ZIP:`, error);
+        console.error(`Erro ao ler conteúdo original do arquivo ${file.name}:`, error);
+        // Se falhar, pula este arquivo
+        continue;
       }
     } else {
       console.warn(`Arquivo original não encontrado para ${file.name}`);
