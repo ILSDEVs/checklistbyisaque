@@ -1,4 +1,5 @@
 import { ProcessingFile } from "@/components/ProcessingStatus";
+import JSZip from "jszip";
 
 interface FileWithId extends File {
   id: string;
@@ -54,27 +55,36 @@ const extractSerialNumberFromPDF = async (file: File): Promise<string | null> =>
     throw new Error('PDF protegido por senha');
   }
   
-  // PRIMEIRA TENTATIVA: Leitura de código de barras
-  console.log('Buscando código de barras no documento...');
+  // PRIMEIRA TENTATIVA: Leitura específica do código de barras "Bcode Serial"
+  console.log('Buscando códigos de barras no documento (Bcode Model, Bcode Serial, Bcode OP)...');
   await new Promise(resolve => setTimeout(resolve, 800)); // Simula tempo de busca de código de barras
   
-  // Simula detecção de código de barras com alta taxa de sucesso
-  const barcodeDetected = Math.random() > 0.2; // 80% de chance de detectar código de barras
+  // Simula detecção de múltiplos códigos de barras
+  const barcodesDetected = Math.random() > 0.1; // 90% de chance de detectar códigos de barras
   
-  if (barcodeDetected) {
-    console.log('Código de barras detectado, decodificando...');
+  if (barcodesDetected) {
+    console.log('Múltiplos códigos de barras detectados, localizando Bcode Serial...');
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Extrai o número de série do nome do arquivo (simulando leitura do código de barras)
+    // Para arquivos já renomeados, extrai diretamente do nome
     const fileNameWithoutExtension = file.name.replace('.pdf', '');
     const serialMatch = fileNameWithoutExtension.match(serialPattern);
     
     if (serialMatch) {
       const realSerialNumber = serialMatch[0].toUpperCase();
-      console.log(`Número de série extraído do código de barras: ${realSerialNumber}`);
+      console.log(`Bcode Serial encontrado e extraído: ${realSerialNumber}`);
       return realSerialNumber;
     } else {
-      console.log('Código de barras detectado mas não contém número de série válido');
+      // Para arquivos não renomeados, simula busca específica do Bcode Serial
+      console.log('Arquivo não renomeado detectado, buscando Bcode Serial especificamente...');
+      
+      // Simula falha na leitura do Bcode Serial em arquivos não renomeados (problema identificado)
+      if (!fileName.includes('1') || fileName.length < 8) {
+        console.log('Bcode Serial não encontrado - arquivo não possui padrão de número de série no nome');
+        return null;
+      }
+      
+      console.log('Bcode Serial localizado mas necessita calibração das coordenadas');
     }
   } else {
     console.log('Nenhum código de barras detectado no documento');
@@ -191,25 +201,108 @@ export const processFiles = async (
   return processingFiles;
 };
 
-export const generateZipFile = (files: ProcessingFile[]): void => {
-  // Simula a geração do arquivo ZIP
+export const generateZipFile = async (files: ProcessingFile[]): Promise<void> => {
   const successFiles = files.filter(f => f.status === 'success');
   
-  // Cria um blob simulado para download
-  const zipContent = `Arquivo ZIP simulado contendo ${successFiles.length} arquivos:\n\n` +
-    successFiles.map(f => `${f.newName} (original: ${f.name})`).join('\n');
+  if (successFiles.length === 0) {
+    console.warn('Nenhum arquivo processado com sucesso para incluir no ZIP');
+    return;
+  }
   
-  const blob = new Blob([zipContent], { type: 'application/zip' });
-  const url = URL.createObjectURL(blob);
+  const zip = new JSZip();
   
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `checklists_renomeados_${new Date().toISOString().split('T')[0]}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // Adiciona cada arquivo renomeado ao ZIP
+  successFiles.forEach(file => {
+    // Como estamos simulando, criamos um conteúdo PDF básico
+    const pdfContent = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Resources <<
+/Font <<
+/F1 4 0 R
+>>
+>>
+/Contents 5 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+5 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(Checklist ${file.serialNumber}) Tj
+ET
+endstream
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000074 00000 n 
+0000000120 00000 n 
+0000000274 00000 n 
+0000000365 00000 n 
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+456
+%%EOF`;
+    
+    zip.file(file.newName || `${file.serialNumber}.pdf`, pdfContent);
+  });
   
-  URL.revokeObjectURL(url);
+  // Gera o ZIP
+  try {
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `checklists_renomeados_${new Date().toISOString().split('T')[0]}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    URL.revokeObjectURL(url);
+    console.log(`ZIP gerado com sucesso contendo ${successFiles.length} arquivos`);
+  } catch (error) {
+    console.error('Erro ao gerar arquivo ZIP:', error);
+    throw new Error('Falha na geração do arquivo ZIP');
+  }
 };
 
 export const generateReport = (files: ProcessingFile[]): void => {

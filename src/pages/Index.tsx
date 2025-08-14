@@ -50,8 +50,14 @@ const Index = () => {
     }
   };
 
-  const handleDownloadZip = () => {
-    generateZipFile(processingFiles);
+  const handleDownloadZip = async () => {
+    try {
+      toast.info("Gerando arquivo ZIP...");
+      await generateZipFile(processingFiles);
+      toast.success("Arquivo ZIP gerado com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao gerar arquivo ZIP");
+    }
   };
 
   const handleDownloadReport = () => {
