@@ -201,7 +201,7 @@ export const processFiles = async (
   return processingFiles;
 };
 
-export const generateZipFile = async (files: ProcessingFile[]): Promise<void> => {
+export const generateZipFile = async (files: ProcessingFile[], originalFiles: FileWithId[]): Promise<void> => {
   const successFiles = files.filter(f => f.status === 'success');
   
   if (successFiles.length === 0) {
@@ -211,79 +211,21 @@ export const generateZipFile = async (files: ProcessingFile[]): Promise<void> =>
   
   const zip = new JSZip();
   
-  // Adiciona cada arquivo renomeado ao ZIP
-  successFiles.forEach(file => {
-    // Como estamos simulando, criamos um conteúdo PDF básico
-    const pdfContent = `%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
-
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
-
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 612 792]
-/Resources <<
-/Font <<
-/F1 4 0 R
->>
->>
-/Contents 5 0 R
->>
-endobj
-
-4 0 obj
-<<
-/Type /Font
-/Subtype /Type1
-/BaseFont /Helvetica
->>
-endobj
-
-5 0 obj
-<<
-/Length 44
->>
-stream
-BT
-/F1 12 Tf
-72 720 Td
-(Checklist ${file.serialNumber}) Tj
-ET
-endstream
-endobj
-
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000074 00000 n 
-0000000120 00000 n 
-0000000274 00000 n 
-0000000365 00000 n 
-trailer
-<<
-/Size 6
-/Root 1 0 R
->>
-startxref
-456
-%%EOF`;
+  // Adiciona cada arquivo renomeado ao ZIP preservando o conteúdo original
+  for (const file of successFiles) {
+    const originalFile = originalFiles.find(orig => orig.id === file.id);
     
-    zip.file(file.newName || `${file.serialNumber}.pdf`, pdfContent);
-  });
+    if (originalFile) {
+      // Lê o conteúdo original do arquivo
+      const arrayBuffer = await originalFile.arrayBuffer();
+      
+      // Adiciona ao ZIP com o novo nome mas conteúdo original
+      zip.file(file.newName || `${file.serialNumber}.pdf`, arrayBuffer);
+      console.log(`Arquivo ${file.name} adicionado ao ZIP como ${file.newName} com conteúdo original preservado`);
+    } else {
+      console.warn(`Arquivo original não encontrado para ${file.name}`);
+    }
+  }
   
   // Gera o ZIP
   try {
