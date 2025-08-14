@@ -202,6 +202,10 @@ export const processFiles = async (
 };
 
 export const generateZipFile = async (files: ProcessingFile[], originalFiles: FileWithId[]): Promise<void> => {
+  console.log('Iniciando geração do ZIP...');
+  console.log('Arquivos processados:', files.map(f => ({ id: f.id, name: f.name, status: f.status })));
+  console.log('Arquivos originais:', originalFiles.map(f => ({ id: f.id, name: f.name, type: typeof f })));
+  
   const successFiles = files.filter(f => f.status === 'success');
   
   if (successFiles.length === 0) {
@@ -213,25 +217,26 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
   
   // Adiciona cada arquivo renomeado ao ZIP preservando o conteúdo original
   for (const file of successFiles) {
+    console.log(`Processando arquivo para ZIP: ${file.name} (ID: ${file.id})`);
     const originalFile = originalFiles.find(orig => orig.id === file.id);
     
     if (originalFile) {
+      console.log(`Arquivo original encontrado: ${originalFile.name}, tipo: ${typeof originalFile}`);
       try {
         // Verifica se é um objeto File real com método arrayBuffer
         let arrayBuffer;
         if (originalFile instanceof File && typeof originalFile.arrayBuffer === 'function') {
+          console.log('Usando arrayBuffer do File...');
           arrayBuffer = await originalFile.arrayBuffer();
-        } else if (originalFile.stream && typeof originalFile.stream === 'function') {
-          // Alternativa usando stream
-          const reader = new FileReader();
-          arrayBuffer = await new Promise((resolve, reject) => {
+        } else {
+          console.log('Usando FileReader como alternativa...');
+          // Alternativa usando FileReader
+          arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+            const reader = new FileReader();
             reader.onload = () => resolve(reader.result as ArrayBuffer);
             reader.onerror = reject;
-            reader.readAsArrayBuffer(originalFile as File);
+            reader.readAsArrayBuffer(originalFile as any);
           });
-        } else {
-          console.error(`Arquivo ${originalFile.name} não é um objeto File válido`);
-          continue;
         }
         
         // Adiciona ao ZIP com o novo nome mas conteúdo original
@@ -243,7 +248,7 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
         continue;
       }
     } else {
-      console.warn(`Arquivo original não encontrado para ${file.name}`);
+      console.warn(`Arquivo original não encontrado para ${file.name} (ID: ${file.id})`);
     }
   }
   
