@@ -217,8 +217,22 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
     
     if (originalFile) {
       try {
-        // Sempre tenta ler o conteúdo original do arquivo
-        const arrayBuffer = await originalFile.arrayBuffer();
+        // Verifica se é um objeto File real com método arrayBuffer
+        let arrayBuffer;
+        if (originalFile instanceof File && typeof originalFile.arrayBuffer === 'function') {
+          arrayBuffer = await originalFile.arrayBuffer();
+        } else if (originalFile.stream && typeof originalFile.stream === 'function') {
+          // Alternativa usando stream
+          const reader = new FileReader();
+          arrayBuffer = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as ArrayBuffer);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(originalFile as File);
+          });
+        } else {
+          console.error(`Arquivo ${originalFile.name} não é um objeto File válido`);
+          continue;
+        }
         
         // Adiciona ao ZIP com o novo nome mas conteúdo original
         zip.file(file.newName || `${file.serialNumber}.pdf`, arrayBuffer);
