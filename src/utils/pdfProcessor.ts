@@ -1,132 +1,91 @@
 import { ProcessingFile } from "@/components/ProcessingStatus";
 import JSZip from "jszip";
+import * as pdfjsLib from 'pdfjs-dist';
 
 interface FileWithId extends File {
   id: string;
   path?: string; // Propriedade opcional para arquivos com path
 }
 
-// Coordenadas padrão para busca do número de série (canto superior esquerdo)
-const DEFAULT_COORDINATES = {
-  x: 50,      // pixels do lado esquerdo
-  y: 50,      // pixels do topo
-  width: 200, // largura da área de busca
-  height: 100 // altura da área de busca
-};
+// Configura o worker do PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs`;
 
-// Múltiplas coordenadas para busca do número de série
-const COORDINATE_VARIATIONS = [
-  { x: 50, y: 50, width: 200, height: 100 },     // Canto superior esquerdo
-  { x: 200, y: 80, width: 250, height: 120 },   // Centro superior
-  { x: 400, y: 50, width: 200, height: 100 },   // Canto superior direito
-  { x: 100, y: 150, width: 300, height: 150 },  // Centro do documento
-  { x: 50, y: 300, width: 400, height: 200 },   // Metade inferior
-  { x: 300, y: 700, width: 200, height: 100 },  // Canto inferior direito
-  { x: 50, y: 700, width: 200, height: 100 },   // Canto inferior esquerdo
-];
-
-// Simula a extração do número de série do PDF usando código de barras e coordenadas
+// Extrai o número de série do PDF lendo o conteúdo real
 const extractSerialNumberFromPDF = async (file: File): Promise<string | null> => {
-  // Verifica se o arquivo e nome são válidos
+  // Verifica se o arquivo é válido
   if (!file || !file.name) {
     console.error('Arquivo inválido ou sem nome:', file);
     throw new Error('Arquivo inválido ou corrompido');
   }
 
-  // Simula tempo de processamento de leitura do PDF
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
-  
   console.log(`Processando arquivo: ${file.name}`);
   console.log(`Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
   
-  // Regex para o padrão 1X000000X
-  const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/;
+  // Regex para o padrão 1X000000X (1 dígito, 1 letra, 6 dígitos, 1 letra)
+  const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/g;
   
-  // Simula diferentes cenários de processamento baseado no nome do arquivo
-  const fileName = file.name.toLowerCase();
-  
-  // Simula PDF corrompido ou com erro
-  if (fileName.includes('corrupt') || fileName.includes('erro')) {
-    throw new Error('Arquivo PDF corrompido ou ilegível');
-  }
-  
-  // Simula PDF protegido por senha
-  if (fileName.includes('protect') || fileName.includes('senha')) {
-    throw new Error('PDF protegido por senha');
-  }
-  
-  // PRIMEIRA TENTATIVA: Leitura específica do código de barras "Bcode Serial"
-  console.log('Buscando códigos de barras no documento (Bcode Model, Bcode Serial, Bcode OP)...');
-  await new Promise(resolve => setTimeout(resolve, 800)); // Simula tempo de busca de código de barras
-  
-  // Simula detecção de múltiplos códigos de barras
-  const barcodesDetected = Math.random() > 0.1; // 90% de chance de detectar códigos de barras
-  
-  if (barcodesDetected) {
-    console.log('Múltiplos códigos de barras detectados, localizando Bcode Serial...');
-    await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    // Converte o arquivo para ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
     
-    // Para arquivos já renomeados, extrai diretamente do nome
-    const fileNameWithoutExtension = file.name.replace('.pdf', '');
-    const serialMatch = fileNameWithoutExtension.match(serialPattern);
+    // Carrega o PDF
+    console.log('Carregando PDF...');
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    console.log(`PDF carregado com ${pdf.numPages} página(s)`);
     
-    if (serialMatch) {
-      const realSerialNumber = serialMatch[0].toUpperCase();
-      console.log(`Bcode Serial encontrado e extraído: ${realSerialNumber}`);
-      return realSerialNumber;
-    } else {
-      // Para arquivos não renomeados, simula busca específica do Bcode Serial
-      console.log('Arquivo não renomeado detectado, buscando Bcode Serial especificamente...');
+    // Processa todas as páginas do PDF
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      console.log(`Processando página ${pageNum}/${pdf.numPages}...`);
       
-      // Simula falha na leitura do Bcode Serial em arquivos não renomeados (problema identificado)
-      if (!fileName.includes('1') || fileName.length < 8) {
-        console.log('Bcode Serial não encontrado - arquivo não possui padrão de número de série no nome');
-        return null;
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Extrai todo o texto da página
+      const fullText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      console.log(`Texto extraído da página ${pageNum} (${fullText.length} caracteres)`);
+      
+      // PRIMEIRA TENTATIVA: Procura especificamente por "BCode Serial" seguido do número
+      const bcodeSerialMatch = fullText.match(/BCode\s*Serial[:\s]*([1][A-Z][0-9]{6}[A-Z])/i);
+      if (bcodeSerialMatch) {
+        const serialNumber = bcodeSerialMatch[1].toUpperCase();
+        console.log(`BCode Serial encontrado na página ${pageNum}: ${serialNumber}`);
+        return serialNumber;
       }
       
-      console.log('Bcode Serial localizado mas necessita calibração das coordenadas');
-    }
-  } else {
-    console.log('Nenhum código de barras detectado no documento');
-  }
-  
-  // SEGUNDA TENTATIVA: Busca por coordenadas com múltiplas variações
-  console.log('Iniciando busca por coordenadas em múltiplas áreas...');
-  
-  for (let i = 0; i < COORDINATE_VARIATIONS.length; i++) {
-    const coords = COORDINATE_VARIATIONS[i];
-    console.log(`Tentativa ${i + 1}/${COORDINATE_VARIATIONS.length}: Buscando nas coordenadas x=${coords.x}, y=${coords.y}, área=${coords.width}x${coords.height}px`);
-    
-    await new Promise(resolve => setTimeout(resolve, 400)); // Simula tempo de OCR
-    
-    // Simula OCR na área especificada
-    if (fileName.includes('scan') || fileName.includes('imagem')) {
-      console.log('Aplicando OCR na área delimitada...');
-    }
-    
-    // Cada área tem uma chance diferente de sucesso
-    const successRate = i === 0 ? 0.3 : i === 1 ? 0.4 : i === 2 ? 0.25 : 0.15; // Primeiras áreas têm mais chance
-    const coordenateSearchSuccess = Math.random() < successRate;
-    
-    if (coordenateSearchSuccess) {
-      // Extrai o número de série do nome do arquivo (simulando leitura das coordenadas)
-      const fileNameWithoutExtension = file.name.replace('.pdf', '');
-      const serialMatch = fileNameWithoutExtension.match(serialPattern);
+      // SEGUNDA TENTATIVA: Procura pelo padrão 1X000000X em qualquer lugar do texto
+      const serialMatches = fullText.match(serialPattern);
+      if (serialMatches && serialMatches.length > 0) {
+        // Se encontrar múltiplas correspondências, pega a primeira
+        const serialNumber = serialMatches[0].toUpperCase();
+        console.log(`Número de série encontrado na página ${pageNum}: ${serialNumber}`);
+        return serialNumber;
+      }
       
-      if (serialMatch) {
-        const realSerialNumber = serialMatch[0].toUpperCase();
-        console.log(`Número de série encontrado nas coordenadas ${i + 1}: ${realSerialNumber}`);
-        return realSerialNumber;
+      console.log(`Nenhum número de série encontrado na página ${pageNum}`);
+    }
+    
+    console.log('Número de série não encontrado em nenhuma página do PDF');
+    return null;
+    
+  } catch (error) {
+    console.error('Erro ao processar PDF:', error);
+    
+    // Verifica erros específicos
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid PDF')) {
+        throw new Error('Arquivo PDF corrompido ou inválido');
+      } else if (error.message.includes('password')) {
+        throw new Error('PDF protegido por senha');
       } else {
-        console.log(`Texto encontrado nas coordenadas ${i + 1} mas não corresponde ao padrão esperado`);
+        throw new Error(`Erro ao ler PDF: ${error.message}`);
       }
-    } else {
-      console.log(`Nenhum texto legível encontrado nas coordenadas ${i + 1}`);
     }
+    
+    throw new Error('Erro desconhecido ao processar PDF');
   }
-  
-  console.log('Número de série não encontrado após busca em todas as coordenadas');
-  return null;
 };
 
 export const processFiles = async (
