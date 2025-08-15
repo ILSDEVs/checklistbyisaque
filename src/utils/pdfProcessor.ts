@@ -10,8 +10,18 @@ interface FileWithId extends File {
 // Configura o worker do PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs`;
 
+// Função universal para ler arquivo como ArrayBuffer
+const readFileAsArrayBuffer = (file: any): Promise<ArrayBuffer> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsArrayBuffer(file);
+  });
+};
+
 // Extrai o número de série do PDF lendo o conteúdo real
-const extractSerialNumberFromPDF = async (file: File): Promise<string | null> => {
+const extractSerialNumberFromPDF = async (file: any): Promise<string | null> => {
   // Verifica se o arquivo é válido
   if (!file || !file.name) {
     console.error('Arquivo inválido ou sem nome:', file);
@@ -25,8 +35,9 @@ const extractSerialNumberFromPDF = async (file: File): Promise<string | null> =>
   const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/g;
   
   try {
-    // Converte o arquivo para ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
+    // Converte o arquivo para ArrayBuffer usando método universal
+    console.log('Carregando conteúdo do arquivo...');
+    const arrayBuffer = await readFileAsArrayBuffer(file);
     
     // Carrega o PDF
     console.log('Carregando PDF...');
@@ -182,21 +193,9 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
     if (originalFile) {
       console.log(`Arquivo original encontrado: ${originalFile.name}, tipo: ${typeof originalFile}`);
       try {
-        // Verifica se é um objeto File real com método arrayBuffer
-        let arrayBuffer;
-        if (originalFile instanceof File && typeof originalFile.arrayBuffer === 'function') {
-          console.log('Usando arrayBuffer do File...');
-          arrayBuffer = await originalFile.arrayBuffer();
-        } else {
-          console.log('Usando FileReader como alternativa...');
-          // Alternativa usando FileReader
-          arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as ArrayBuffer);
-            reader.onerror = reject;
-            reader.readAsArrayBuffer(originalFile as any);
-          });
-        }
+        // Usa a função universal para ler o arquivo
+        console.log('Lendo conteúdo original do arquivo para o ZIP...');
+        const arrayBuffer = await readFileAsArrayBuffer(originalFile);
         
         // Adiciona ao ZIP com o novo nome mas conteúdo original
         zip.file(file.newName || `${file.serialNumber}.pdf`, arrayBuffer);
