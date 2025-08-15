@@ -13,6 +13,27 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 // Função universal para ler arquivo como ArrayBuffer
 const readFileAsArrayBuffer = (file: any): Promise<ArrayBuffer> => {
   return new Promise((resolve, reject) => {
+    console.log('Tentando ler arquivo:', {
+      name: file?.name,
+      size: file?.size,
+      type: file?.type,
+      constructor: file?.constructor?.name,
+      isFile: file instanceof File,
+      isBlob: file instanceof Blob,
+      hasArrayBuffer: typeof file?.arrayBuffer === 'function'
+    });
+    
+    // Se o arquivo tem arrayBuffer nativo, usa ele
+    if (file instanceof File && typeof file.arrayBuffer === 'function') {
+      console.log('Usando arrayBuffer nativo...');
+      file.arrayBuffer()
+        .then(resolve)
+        .catch(reject);
+      return;
+    }
+    
+    // Senão, usa FileReader
+    console.log('Usando FileReader...');
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as ArrayBuffer);
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
@@ -105,20 +126,14 @@ export const processFiles = async (
 ): Promise<ProcessingFile[]> => {
   console.log(`Iniciando processamento de ${files.length} arquivos`);
   
-  // Mapeia e converte os objetos file-like para formato esperado
-  const validFiles = files.map(file => {
-    // Se é um objeto com path, extrai o nome do arquivo
-    if (file.path && !file.name) {
-      const fileName = file.path.replace('./', ''); // Remove "./" do início
-      return {
-        ...file,
-        name: fileName,
-        size: 1024 * 1024, // Simula 1MB para cada arquivo
-        type: 'application/pdf'
-      };
+  // Valida se todos os arquivos são válidos (objetos File reais)
+  const validFiles = files.filter(file => {
+    if (!file || !file.name || typeof file.size !== 'number') {
+      console.warn(`Arquivo inválido ignorado:`, file);
+      return false;
     }
-    return file;
-  }).filter(file => file && file.name && file.name.length > 0);
+    return true;
+  });
   
   console.log(`Arquivos válidos processados: ${validFiles.length}/${files.length}`);
   
