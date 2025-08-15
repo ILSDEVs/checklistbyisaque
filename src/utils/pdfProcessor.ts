@@ -126,13 +126,33 @@ export const processFiles = async (
 ): Promise<ProcessingFile[]> => {
   console.log(`Iniciando processamento de ${files.length} arquivos`);
   
-  // Valida se todos os arquivos são válidos (objetos File reais)
-  const validFiles = files.filter(file => {
-    if (!file || !file.name || typeof file.size !== 'number') {
-      console.warn(`Arquivo inválido ignorado:`, file);
-      return false;
+  // Processa os arquivos, seja de File real ou objeto com path
+  const validFiles = files.map(file => {
+    console.log('Arquivo recebido:', {
+      name: file.name,
+      path: file.path,
+      size: file.size,
+      type: file.type,
+      id: file.id
+    });
+    
+    // Se tem path mas não tem name, extrai o nome do path
+    if (file.path && !file.name) {
+      const fileName = file.path.replace('./', '');
+      return {
+        ...file,
+        name: fileName,
+        size: file.size || 1024 * 1024, // 1MB padrão se não tiver size
+        type: file.type || 'application/pdf'
+      };
     }
-    return true;
+    return file;
+  }).filter(file => {
+    const isValid = file && file.name && file.name.length > 0;
+    if (!isValid) {
+      console.warn(`Arquivo inválido ignorado:`, file);
+    }
+    return isValid;
   });
   
   console.log(`Arquivos válidos processados: ${validFiles.length}/${files.length}`);
