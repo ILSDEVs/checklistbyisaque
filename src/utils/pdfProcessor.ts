@@ -209,17 +209,17 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
   console.log('Arquivos processados:', files.map(f => ({ id: f.id, name: f.name, status: f.status })));
   console.log('Arquivos originais:', originalFiles.map(f => ({ id: f.id, name: f.name, type: typeof f })));
   
-  const successFiles = files.filter(f => f.status === 'success');
+  const filesToInclude = files.filter(f => f.status === 'success' || f.status === 'error');
   
-  if (successFiles.length === 0) {
-    console.warn('Nenhum arquivo processado com sucesso para incluir no ZIP');
+  if (filesToInclude.length === 0) {
+    console.warn('Nenhum arquivo para incluir no ZIP');
     return;
   }
   
   const zip = new JSZip();
   
-  // Adiciona cada arquivo renomeado ao ZIP preservando o conteúdo original
-  for (const file of successFiles) {
+  // Adiciona cada arquivo ao ZIP (renomeado se sucesso, nome original se erro)
+  for (const file of filesToInclude) {
     console.log(`Processando arquivo para ZIP: ${file.name} (ID: ${file.id})`);
     const originalFile = originalFiles.find(orig => orig.id === file.id);
     
@@ -237,9 +237,10 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
         console.log('Lendo conteúdo original do arquivo para o ZIP...');
         const arrayBuffer = await readFileAsArrayBuffer(originalFile);
         
-        // Adiciona ao ZIP com o novo nome mas conteúdo original
-        zip.file(file.newName || `${file.serialNumber}.pdf`, arrayBuffer);
-        console.log(`Arquivo ${file.name} adicionado ao ZIP como ${file.newName} com conteúdo original preservado`);
+        // Adiciona ao ZIP com nome apropriado (novo nome se sucesso, original se erro)
+        const fileName = file.status === 'success' ? (file.newName || `${file.serialNumber}.pdf`) : file.name;
+        zip.file(fileName, arrayBuffer);
+        console.log(`Arquivo ${file.name} adicionado ao ZIP como ${fileName} com conteúdo original preservado`);
       } catch (error) {
         console.error(`Erro ao ler conteúdo original do arquivo ${file.name}:`, error);
         // Se falhar, pula este arquivo
@@ -263,7 +264,7 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
     document.body.removeChild(a);
     
     URL.revokeObjectURL(url);
-    console.log(`ZIP gerado com sucesso contendo ${successFiles.length} arquivos`);
+    console.log(`ZIP gerado com sucesso contendo ${filesToInclude.length} arquivos`);
   } catch (error) {
     console.error('Erro ao gerar arquivo ZIP:', error);
     throw new Error('Falha na geração do arquivo ZIP');
