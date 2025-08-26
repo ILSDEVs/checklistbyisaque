@@ -15,10 +15,13 @@ interface FileUploadProps {
 
 export const FileUpload = ({ onFilesChange, files }: FileUploadProps) => {
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
-      ...file,
-      id: `${file.name}-${Date.now()}-${Math.random()}`
-    }));
+    const newFiles = acceptedFiles.map((file) => {
+      // Preserva o objeto File original e apenas anexa o id (não espalhar!)
+      const withId = Object.assign(file, {
+        id: `${file.name}-${Date.now()}-${Math.random()}`,
+      }) as FileWithId;
+      return withId;
+    });
     onFilesChange([...files, ...newFiles]);
   }, [files, onFilesChange]);
 

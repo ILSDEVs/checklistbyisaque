@@ -1,14 +1,15 @@
 import { ProcessingFile } from "@/components/ProcessingStatus";
 import JSZip from "jszip";
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 interface FileWithId extends File {
   id: string;
   path?: string; // Propriedade opcional para arquivos com path
 }
 
-// Configura o worker do PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs`;
+// Configura o worker do PDF.js (usa versão instalada para evitar incompatibilidades)
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker as any;
 
 // Função universal para ler arquivo como ArrayBuffer
 const readFileAsArrayBuffer = (file: any): Promise<ArrayBuffer> => {
@@ -54,7 +55,8 @@ const extractSerialNumberFromPDF = async (file: any): Promise<string | null> => 
   
   // Regex para o padrão 1X000000X (1 dígito, 1 letra, 6 dígitos, 1 letra)
   const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/g;
-  
+  const serialPatternNoBoundary = /1[A-Z][0-9]{6}[A-Z]/g;
+
   try {
     // Converte o arquivo para ArrayBuffer usando método universal
     console.log('Carregando conteúdo do arquivo...');
@@ -72,14 +74,15 @@ const extractSerialNumberFromPDF = async (file: any): Promise<string | null> => 
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
       
-      // Extrai todo o texto da página
-      const fullText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
+      // Extrai todo o texto da página em diferentes formas
+      const itemsText = textContent.items.map((item: any) => item.str);
+      const fullText = itemsText.join(' ');
+      const compactText = itemsText.join('').toUpperCase(); // sem espaços
+      const alnumText = fullText.replace(/[^A-Za-z0-9]/g, '').toUpperCase(); // só letras/números
       
       console.log(`Texto extraído da página ${pageNum} (${fullText.length} caracteres)`);
       
-      // PRIMEIRA TENTATIVA: Procura especificamente por "BCode Serial" seguido do número
+      // PRIMEIRA TENTATIVA: Procura especificamente por "BCode Serial" seguido do número no texto original
       const bcodeSerialMatch = fullText.match(/BCode\s*Serial[:\s]*([1][A-Z][0-9]{6}[A-Z])/i);
       if (bcodeSerialMatch) {
         const serialNumber = bcodeSerialMatch[1].toUpperCase();
@@ -87,12 +90,27 @@ const extractSerialNumberFromPDF = async (file: any): Promise<string | null> => 
         return serialNumber;
       }
       
-      // SEGUNDA TENTATIVA: Procura pelo padrão 1X000000X em qualquer lugar do texto
-      const serialMatches = fullText.match(serialPattern);
+      // SEGUNDA TENTATIVA: Procura pelo padrão 1X000000X no texto com espaços
+      const serialMatches = fullText.toUpperCase().match(serialPattern);
       if (serialMatches && serialMatches.length > 0) {
-        // Se encontrar múltiplas correspondências, pega a primeira
         const serialNumber = serialMatches[0].toUpperCase();
-        console.log(`Número de série encontrado na página ${pageNum}: ${serialNumber}`);
+        console.log(`Número de série encontrado na página ${pageNum} (texto com espaços): ${serialNumber}`);
+        return serialNumber;
+      }
+      
+      // TERCEIRA TENTATIVA: Procura no texto sem espaços (itens concatenados)
+      const compactMatches = compactText.match(serialPatternNoBoundary);
+      if (compactMatches && compactMatches.length > 0) {
+        const serialNumber = compactMatches[0].toUpperCase();
+        console.log(`Número de série encontrado na página ${pageNum} (texto compacto): ${serialNumber}`);
+        return serialNumber;
+      }
+      
+      // QUARTA TENTATIVA: Procura em texto alfanumérico (remove símbolos e quebras)
+      const alnumMatches = alnumText.match(serialPatternNoBoundary);
+      if (alnumMatches && alnumMatches.length > 0) {
+        const serialNumber = alnumMatches[0].toUpperCase();
+        console.log(`Número de série encontrado na página ${pageNum} (texto alfanumérico): ${serialNumber}`);
         return serialNumber;
       }
       
@@ -126,29 +144,9 @@ export const processFiles = async (
 ): Promise<ProcessingFile[]> => {
   console.log(`Iniciando processamento de ${files.length} arquivos`);
   
-  // Processa os arquivos, seja de File real ou objeto com path
-  const validFiles = files.map(file => {
-    console.log('Arquivo recebido:', {
-      name: file.name,
-      path: file.path,
-      size: file.size,
-      type: file.type,
-      id: file.id
-    });
-    
-    // Se tem path mas não tem name, extrai o nome do path
-    if (file.path && !file.name) {
-      const fileName = file.path.replace('./', '');
-      return {
-        ...file,
-        name: fileName,
-        size: file.size || 1024 * 1024, // 1MB padrão se não tiver size
-        type: file.type || 'application/pdf'
-      };
-    }
-    return file;
-  }).filter(file => {
-    const isValid = file && file.name && file.name.length > 0;
+  // Garante apenas arquivos File reais
+  const validFiles = files.filter((file) => {
+    const isValid = file instanceof File && !!file.name && typeof file.size === 'number';
     if (!isValid) {
       console.warn(`Arquivo inválido ignorado:`, file);
     }
@@ -226,7 +224,14 @@ export const generateZipFile = async (files: ProcessingFile[], originalFiles: Fi
     const originalFile = originalFiles.find(orig => orig.id === file.id);
     
     if (originalFile) {
-      console.log(`Arquivo original encontrado: ${originalFile.name}, tipo: ${typeof originalFile}`);
+      console.log(`Arquivo original encontrado: ${originalFile.name}, tipo: ${typeof originalFile}`, {
+        isFile: originalFile instanceof File,
+        ctor: (originalFile as any)?.constructor?.name
+      });
+      if (!(originalFile instanceof File)) {
+        console.warn('Ignorando item não-File ao gerar ZIP:', originalFile);
+        continue;
+      }
       try {
         // Usa a função universal para ler o arquivo
         console.log('Lendo conteúdo original do arquivo para o ZIP...');
