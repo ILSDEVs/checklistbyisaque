@@ -10,8 +10,16 @@
     "package.json"
   ],
   "win": {
-    "target": "nsis",
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
     "icon": "public/favicon.ico"
+  },
+  "portable": {
+    "artifactName": "ChecklistByIsaque-Portable.exe"
   },
   "mac": {
     "target": "dmg",
@@ -20,11 +28,5 @@
   "linux": {
     "target": "AppImage",
     "icon": "public/favicon.ico"
-  },
-  "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
   }
 }
