@@ -56,7 +56,21 @@ if errorlevel 1 goto :error
 
 echo.
 echo Sucesso! O executavel portatil foi gerado em: dist-electron
-start "" explorer "%CD%\dist-electron"
+set "DIST_DIR=%CD%\dist-electron"
+echo.
+echo Abrindo pasta com o executavel...
+if exist "%DIST_DIR%" (
+  echo Caminho: "%DIST_DIR%"
+  rem Tenta abrir diretamente a pasta (metodo mais confiavel)
+  start "" "%DIST_DIR%"
+  rem Fallback caso o comando acima falhe
+  if errorlevel 1 (
+    explorer "%DIST_DIR%"
+  )
+) else (
+  echo ATENCAO: Pasta nao encontrada: "%DIST_DIR%"
+  echo Verifique se a build terminou sem erros.
+)
 
 echo.
 echo Observacao: Se o SmartScreen aparecer, clique em "Mais informacoes" > "Executar assim mesmo".
