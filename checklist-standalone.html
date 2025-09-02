@@ -290,11 +290,20 @@
                 </ol>
                 
                 <div class="alert alert-success">
+                    <strong>✨ Padrão de Número de Série:</strong><br>
+                    🔍 Busca pelo padrão <strong>1X000000X</strong> (1 + letra + 6 dígitos + letra)<br>
+                    📋 Procura especificamente por "BCode Serial" nos PDFs<br>
+                    🔎 Analisa TODAS as páginas de cada PDF<br>
+                    📄 Exemplo: <code>1A123456B</code>, <code>1Z987654C</code>
+                </div>
+                
+                <div class="alert alert-success">
                     <strong>✨ Vantagens desta versão:</strong><br>
                     ✅ Funciona offline após carregar<br>
                     ✅ Não precisa instalar nada<br>
                     ✅ Roda em qualquer navegador<br>
-                    ✅ Sem permissões especiais necessárias
+                    ✅ Sem permissões especiais necessárias<br>
+                    ✅ Mesma lógica da versão original
                 </div>
             </div>
         </div>
@@ -461,37 +470,85 @@
         }
 
         async function extractSerialNumber(file) {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-                
-                for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const text = textContent.items.map(item => item.str).join(' ');
-                    
-                    // Padrões de números de série mais abrangentes
-                    const patterns = [
-                        /(?:s\/n|serial|série|numero|nº|n°|#)\s*:?\s*([a-z0-9\-\/]+)/i,
-                        /\b([a-z]{2,4}\d{4,8})\b/i,
-                        /\b(\d{8,12})\b/,
-                        /\b([a-z0-9]{8,15})\b/i
-                    ];
+            console.log(`Processando arquivo: ${file.name}`);
+            console.log(`Tamanho do arquivo: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+            
+            // Regex para o padrão EXATO: 1X000000X (1 dígito, 1 letra, 6 dígitos, 1 letra)
+            const serialPattern = /\b1[A-Z][0-9]{6}[A-Z]\b/g;
+            const serialPatternNoBoundary = /1[A-Z][0-9]{6}[A-Z]/g;
 
-                    for (const pattern of patterns) {
-                        const match = text.match(pattern);
-                        if (match && match[1]) {
-                            const serial = match[1].trim();
-                            if (serial.length >= 4) {
-                                return serial;
-                            }
-                        }
+            try {
+                console.log('Carregando conteúdo do arquivo...');
+                const arrayBuffer = await file.arrayBuffer();
+                
+                console.log('Carregando PDF...');
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                console.log(`PDF carregado com ${pdf.numPages} página(s)`);
+                
+                // Processa TODAS as páginas do PDF (não apenas as 3 primeiras)
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    console.log(`Processando página ${pageNum}/${pdf.numPages}...`);
+                    
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    
+                    // Extrai todo o texto da página em diferentes formas
+                    const itemsText = textContent.items.map((item) => item.str);
+                    const fullText = itemsText.join(' ');
+                    const compactText = itemsText.join('').toUpperCase(); // sem espaços
+                    const alnumText = fullText.replace(/[^A-Za-z0-9]/g, '').toUpperCase(); // só letras/números
+                    
+                    console.log(`Texto extraído da página ${pageNum} (${fullText.length} caracteres)`);
+                    
+                    // PRIMEIRA TENTATIVA: Procura especificamente por "BCode Serial" seguido do número
+                    const bcodeSerialMatch = fullText.match(/BCode\s*Serial[:\s]*([1][A-Z][0-9]{6}[A-Z])/i);
+                    if (bcodeSerialMatch) {
+                        const serialNumber = bcodeSerialMatch[1].toUpperCase();
+                        console.log(`BCode Serial encontrado na página ${pageNum}: ${serialNumber}`);
+                        return serialNumber;
                     }
+                    
+                    // SEGUNDA TENTATIVA: Procura pelo padrão 1X000000X no texto com espaços
+                    const serialMatches = fullText.toUpperCase().match(serialPattern);
+                    if (serialMatches && serialMatches.length > 0) {
+                        const serialNumber = serialMatches[0].toUpperCase();
+                        console.log(`Número de série encontrado na página ${pageNum} (texto com espaços): ${serialNumber}`);
+                        return serialNumber;
+                    }
+                    
+                    // TERCEIRA TENTATIVA: Procura no texto sem espaços (itens concatenados)
+                    const compactMatches = compactText.match(serialPatternNoBoundary);
+                    if (compactMatches && compactMatches.length > 0) {
+                        const serialNumber = compactMatches[0].toUpperCase();
+                        console.log(`Número de série encontrado na página ${pageNum} (texto compacto): ${serialNumber}`);
+                        return serialNumber;
+                    }
+                    
+                    // QUARTA TENTATIVA: Procura em texto alfanumérico (remove símbolos e quebras)
+                    const alnumMatches = alnumText.match(serialPatternNoBoundary);
+                    if (alnumMatches && alnumMatches.length > 0) {
+                        const serialNumber = alnumMatches[0].toUpperCase();
+                        console.log(`Número de série encontrado na página ${pageNum} (texto alfanumérico): ${serialNumber}`);
+                        return serialNumber;
+                    }
+                    
+                    console.log(`Nenhum número de série encontrado na página ${pageNum}`);
                 }
+                
+                console.log('Número de série não encontrado em nenhuma página do PDF');
                 return null;
+                
             } catch (error) {
-                console.error('Erro ao extrair número de série:', error);
-                return null;
+                console.error('Erro ao processar PDF:', error);
+                
+                // Verifica erros específicos
+                if (error.message && error.message.includes('Invalid PDF')) {
+                    throw new Error('Arquivo PDF corrompido ou inválido');
+                } else if (error.message && error.message.includes('password')) {
+                    throw new Error('PDF protegido por senha');
+                } else {
+                    throw new Error(`Erro ao ler PDF: ${error.message || 'Erro desconhecido'}`);
+                }
             }
         }
 
