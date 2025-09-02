@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist By Isaque - Renomeador de PDFs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #2980b9;
+            background-color: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background-color: #e8f5e8;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .file-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .file-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-waiting {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+
+        .status-processing {
+            background: #74b9ff;
+            color: white;
+        }
+
+        .status-success {
+            background: #00b894;
+            color: white;
+        }
+
+        .status-error {
+            background: #fd79a8;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.3s ease;
+        }
+
+        .results {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .instructions {
+            background: #f1f3f4;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .instructions h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+            color: #34495e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Checklist By Isaque</h1>
+            <p>Renomeador automático de PDFs por número de série</p>
+        </div>
+
+        <div class="content">
+            <!-- Upload Area -->
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <h3>Arraste os PDFs aqui ou clique para selecionar</h3>
+                <p>Suporta múltiplos arquivos PDF</p>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".pdf">
+            </div>
+
+            <!-- File List -->
+            <div id="fileListContainer" class="hidden">
+                <h3>Arquivos Selecionados:</h3>
+                <div class="file-list" id="fileList"></div>
+                
+                <div class="text-center">
+                    <button class="btn" id="processBtn">🚀 Processar Arquivos</button>
+                    <button class="btn" id="clearBtn">🗑️ Limpar Lista</button>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div id="progressContainer" class="hidden">
+                <h3>Processando...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressText">Preparando...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="resultsContainer" class="hidden">
+                <div class="results">
+                    <h3>✅ Processamento Concluído!</h3>
+                    <p id="resultsText"></p>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-success" id="downloadBtn">💾 Baixar Arquivos Renomeados</button>
+                        <button class="btn" id="reportBtn">📊 Baixar Relatório</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="instructions">
+                <h3>📖 Como usar:</h3>
+                <ol>
+                    <li><strong>Selecione os PDFs:</strong> Arraste ou clique para escolher os arquivos</li>
+                    <li><strong>Processe:</strong> Clique em "Processar Arquivos" para extrair números de série</li>
+                    <li><strong>Baixe:</strong> Faça download dos arquivos renomeados e do relatório</li>
+                </ol>
+                
+                <div class="alert alert-success">
+                    <strong>✨ Vantagens desta versão:</strong><br>
+                    ✅ Funciona offline após carregar<br>
+                    ✅ Não precisa instalar nada<br>
+                    ✅ Roda em qualquer navegador<br>
+                    ✅ Sem permissões especiais necessárias
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurar PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Variáveis globais
+        let selectedFiles = [];
+        let processedFiles = [];
+        let processingResults = [];
+
+        // Elementos DOM
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileListContainer = document.getElementById('fileListContainer');
+        const fileList = document.getElementById('fileList');
+        const processBtn = document.getElementById('processBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const resultsText = document.getElementById('resultsText');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const reportBtn = document.getElementById('reportBtn');
+
+        // Event listeners
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        fileInput.addEventListener('change', handleFileSelect);
+        processBtn.addEventListener('click', processFiles);
+        clearBtn.addEventListener('click', clearFiles);
+        downloadBtn.addEventListener('click', downloadProcessedFiles);
+        reportBtn.addEventListener('click', downloadReport);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
+            addFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            addFiles(files);
+        }
+
+        function addFiles(files) {
+            files.forEach(file => {
+                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
+                    selectedFiles.push({
+                        id: Date.now() + Math.random(),
+                        file: file,
+                        status: 'waiting'
+                    });
+                }
+            });
+            updateFileList();
+            showAlert('Arquivos adicionados com sucesso!', 'success');
+        }
+
+        function updateFileList() {
+            if (selectedFiles.length === 0) {
+                fileListContainer.classList.add('hidden');
+                return;
+            }
+
+            fileListContainer.classList.remove('hidden');
+            fileList.innerHTML = selectedFiles.map(item => `
+                <div class="file-item">
+                    <span class="file-name">${item.file.name}</span>
+                    <span class="file-status status-${item.status}">
+                        ${item.status === 'waiting' ? 'Aguardando' : 
+                          item.status === 'processing' ? 'Processando...' :
+                          item.status === 'success' ? 'Concluído' : 'Erro'}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function clearFiles() {
+            selectedFiles = [];
+            processedFiles = [];
+            processingResults = [];
+            updateFileList();
+            hideProgress();
+            hideResults();
+            showAlert('Lista de arquivos limpa!', 'success');
+        }
+
+        async function processFiles() {
+            if (selectedFiles.length === 0) {
+                showAlert('Selecione arquivos PDF primeiro!', 'error');
+                return;
+            }
+
+            processBtn.disabled = true;
+            showProgress();
+            hideResults();
+            
+            processingResults = [];
+            processedFiles = [];
+
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const item = selectedFiles[i];
+                item.status = 'processing';
+                updateFileList();
+                updateProgress((i / selectedFiles.length) * 100, `Processando ${item.file.name}...`);
+
+                try {
+                    const serialNumber = await extractSerialNumber(item.file);
+                    const newName = serialNumber ? `${serialNumber}.pdf` : `sem_numero_${Date.now()}.pdf`;
+                    
+                    processedFiles.push({
+                        originalName: item.file.name,
+                        newName: newName,
+                        file: item.file,
+                        serialNumber: serialNumber
+                    });
+
+                    processingResults.push({
+                        original: item.file.name,
+                        renamed: newName,
+                        serialFound: !!serialNumber,
+                        serial: serialNumber || 'Não encontrado'
+                    });
+
+                    item.status = 'success';
+                } catch (error) {
+                    console.error('Erro ao processar:', error);
+                    item.status = 'error';
+                    processingResults.push({
+                        original: item.file.name,
+                        renamed: 'ERRO',
+                        serialFound: false,
+                        serial: 'Erro no processamento'
+                    });
+                }
+
+                updateFileList();
+            }
+
+            updateProgress(100, 'Processamento concluído!');
+            setTimeout(() => {
+                hideProgress();
+                showResults();
+                processBtn.disabled = false;
+            }, 1000);
+        }
+
+        async function extractSerialNumber(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                
+                for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const text = textContent.items.map(item => item.str).join(' ');
+                    
+                    // Padrões de números de série mais abrangentes
+                    const patterns = [
+                        /(?:s\/n|serial|série|numero|nº|n°|#)\s*:?\s*([a-z0-9\-\/]+)/i,
+                        /\b([a-z]{2,4}\d{4,8})\b/i,
+                        /\b(\d{8,12})\b/,
+                        /\b([a-z0-9]{8,15})\b/i
+                    ];
+
+                    for (const pattern of patterns) {
+                        const match = text.match(pattern);
+                        if (match && match[1]) {
+                            const serial = match[1].trim();
+                            if (serial.length >= 4) {
+                                return serial;
+                            }
+                        }
+                    }
+                }
+                return null;
+            } catch (error) {
+                console.error('Erro ao extrair número de série:', error);
+                return null;
+            }
+        }
+
+        async function downloadProcessedFiles() {
+            if (processedFiles.length === 0) {
+                showAlert('Nenhum arquivo processado para download!', 'error');
+                return;
+            }
+
+            const zip = new JSZip();
+            
+            for (const item of processedFiles) {
+                zip.file(item.newName, item.file);
+            }
+
+            const content = await zip.generateAsync({type: 'blob'});
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `checklist_renomeados_${new Date().toISOString().split('T')[0]}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showAlert('Download iniciado!', 'success');
+        }
+
+        function downloadReport() {
+            if (processingResults.length === 0) {
+                showAlert('Nenhum resultado para gerar relatório!', 'error');
+                return;
+            }
+
+            let csv = 'Arquivo Original,Arquivo Renomeado,Numero Serie Encontrado,Numero de Serie\n';
+            processingResults.forEach(result => {
+                csv += `"${result.original}","${result.renamed}","${result.serialFound ? 'Sim' : 'Não'}","${result.serial}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `relatorio_processamento_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showAlert('Relatório baixado!', 'success');
+        }
+
+        function showProgress() {
+            progressContainer.classList.remove('hidden');
+        }
+
+        function hideProgress() {
+            progressContainer.classList.add('hidden');
+        }
+
+        function updateProgress(percent, text) {
+            progressFill.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+
+        function showResults() {
+            const successful = processingResults.filter(r => r.serialFound).length;
+            const total = processingResults.length;
+            
+            resultsText.textContent = `${successful} de ${total} arquivos processados com sucesso. ${total - successful} arquivos não continham números de série identificáveis.`;
+            resultsContainer.classList.remove('hidden');
+        }
+
+        function hideResults() {
+            resultsContainer.classList.add('hidden');
+        }
+
+        function showAlert(message, type) {
+            const existing = document.querySelector('.alert');
+            if (existing) existing.remove();
+
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            const content = document.querySelector('.content');
+            content.insertBefore(alert, content.firstChild);
+
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Inicialização
+        console.log('Checklist By Isaque - Versão Web carregada com sucesso!');
+    </script>
+</body>
+</html>
