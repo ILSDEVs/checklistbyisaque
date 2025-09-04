@@ -312,7 +312,8 @@
                     ✅ Roda em qualquer navegador<br>
                     ✅ Sem permissões especiais necessárias<br>
                     ✅ Mesma lógica da versão original<br>
-                    ✅ Baixa arquivos PDF individuais (não ZIP)
+                    ✅ <strong>Download automático na pasta Downloads</strong><br>
+                    ✅ <strong>Não pergunta onde salvar cada arquivo</strong>
                 </div>
                 
                 <div class="alert alert-error">
@@ -589,20 +590,35 @@
                 return;
             }
 
-            // Baixa cada arquivo PDF individualmente
+            showAlert('Iniciando downloads automáticos na pasta Downloads...', 'success');
+            
+            // Baixa cada arquivo PDF individualmente (salvará automaticamente na pasta Downloads)
             for (const item of processedFiles) {
-                const url = URL.createObjectURL(item.file);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = item.newName;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                // Pequeno delay entre downloads para evitar problemas
-                await new Promise(resolve => setTimeout(resolve, 500));
+                try {
+                    const url = URL.createObjectURL(item.file);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = item.newName;
+                    
+                    // Adiciona atributos para forçar download direto
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    
+                    // Simula clique para download
+                    a.click();
+                    
+                    // Limpa recursos
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // Delay entre downloads para evitar problemas do navegador
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                } catch (error) {
+                    console.error('Erro no download:', error);
+                }
             }
 
-            showAlert(`${processedFiles.length} arquivo(s) PDF baixado(s) individualmente!`, 'success');
+            showAlert(`✅ ${processedFiles.length} arquivo(s) PDF baixados automaticamente na pasta Downloads!`, 'success');
         }
 
         function downloadReport() {

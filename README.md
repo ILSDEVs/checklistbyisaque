@@ -1,73 +1,53 @@
-# Welcome to your Lovable project
+# Checklist By Isaque - Renomeador de PDFs
 
-## Project info
+## 📋 O que é este projeto?
 
-**URL**: https://lovable.dev/projects/d57e33f4-f79d-4312-b9e6-fc4d2d5859f4
+Este é um renomeador automático de PDFs que busca números de série no padrão **1X000000X** (1 + letra + 6 dígitos + letra) dentro dos documentos e renomeia os arquivos com o número encontrado.
 
-## How can I edit this code?
+## 🚀 Como usar (SUPER SIMPLES):
 
-There are several ways of editing your application.
+1. **Baixe** o arquivo `checklist-standalone.html`
+2. **Clique duplo** no arquivo (abrirá no navegador)
+3. **Arraste** os PDFs para dentro da janela
+4. **Clique** em "Processar Arquivos"
+5. **Clique** em "Baixar Arquivos Renomeados"
+6. **Pronto!** Os arquivos serão salvos automaticamente na pasta **Downloads**
 
-**Use Lovable**
+## ✅ Vantagens desta versão:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d57e33f4-f79d-4312-b9e6-fc4d2d5859f4) and start prompting.
+- ✅ **ZERO instalações** necessárias
+- ✅ **ZERO permissões** especiais
+- ✅ **Funciona 100% offline** após abrir
+- ✅ **Roda em qualquer PC** com Windows
+- ✅ **Download automático** na pasta Downloads (não pergunta onde salvar)
+- ✅ **Funciona em qualquer navegador** moderno
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🔍 Padrão de busca:
 
-**Use your preferred IDE**
+O sistema procura especificamente por:
+- **Padrão**: `1X000000X` (1 + letra + 6 dígitos + letra)
+- **Exemplos**: `1A123456B`, `1Z987654C`
+- **Busca**: "BCode Serial" nos PDFs
+- **Análise**: TODAS as páginas de cada PDF
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📁 Arquivos principais:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- `checklist-standalone.html` - **Aplicativo principal** (único arquivo necessário)
+- `COMO-USAR-SIMPLES.md` - Instruções detalhadas de uso
 
-Follow these steps:
+## 🛡️ Segurança:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- Funciona 100% offline (não envia dados para internet)
+- Processa PDFs localmente no seu computador
+- Não acessa arquivos ou pastas do sistema
+- Código aberto e auditável
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 📞 Suporte:
 
-# Step 3: Install the necessary dependencies.
-npm i
+Se o Windows mostrar aviso de segurança:
+1. Clique com botão direito no arquivo HTML
+2. Selecione "Propriedades" 
+3. Marque "Desbloquear" (se existir)
+4. Clique "OK"
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/d57e33f4-f79d-4312-b9e6-fc4d2d5859f4) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Ou simplesmente arraste o arquivo para dentro do navegador (Chrome, Edge, Firefox).
