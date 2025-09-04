@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checklist By Isaque - Renomeador de PDFs</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -303,7 +302,8 @@
                     ✅ Não precisa instalar nada<br>
                     ✅ Roda em qualquer navegador<br>
                     ✅ Sem permissões especiais necessárias<br>
-                    ✅ Mesma lógica da versão original
+                    ✅ Mesma lógica da versão original<br>
+                    ✅ Baixa arquivos PDF individuais (não ZIP)
                 </div>
             </div>
         </div>
@@ -558,21 +558,20 @@
                 return;
             }
 
-            const zip = new JSZip();
-            
+            // Baixa cada arquivo PDF individualmente
             for (const item of processedFiles) {
-                zip.file(item.newName, item.file);
+                const url = URL.createObjectURL(item.file);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = item.newName;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                // Pequeno delay entre downloads para evitar problemas
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
 
-            const content = await zip.generateAsync({type: 'blob'});
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `checklist_renomeados_${new Date().toISOString().split('T')[0]}.zip`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            showAlert('Download iniciado!', 'success');
+            showAlert(`${processedFiles.length} arquivo(s) PDF baixado(s) individualmente!`, 'success');
         }
 
         function downloadReport() {
